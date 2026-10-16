@@ -33,5 +33,21 @@ assert(Math.abs(O.dispersion('Zirconia').dn-.03455)<.00005);
 assert(O.dispersion('ZnS').Vd<O.dispersion('N-SF66').Vd);
 for(const glass of Object.keys(O.glasses)){let last=Infinity;for(let nm=450;nm<=700;nm+=2){const n=O.index(glass,nm);assert(Number.isFinite(n)&&n>1&&n<last,'Visible dispersion curve is finite and decreases');last=n;}}
 for(const glass of Object.keys(O.glasses))for(const R of [35,100])for(const w of O.waves){const b=O.focus(w.nm,{glass,R,t:6})-6;assert(b>5&&b<180,'Screen range covers every paraxial focus');}
+let doubletCases=0;
+for(let R=35;R<=100;R++){
+ const s={mode:'doublet',glass:'N-BK7',R,t:6,ap:22},surfaces=O.prescription(s),blue=O.focus(486.1,s),green=O.focus(546.1,s),red=O.focus(656.3,s),baseline=O.matchedSinglet(s);
+ assert(Math.abs(blue-red)<1e-6,'Achromat brings F and C to the same paraxial back focal plane');
+ assert(blue>green,'Secondary spectrum remains');
+ assert(Math.abs(green-O.rear(s)-(O.focus(546.1,baseline)-O.rear(baseline)))<1e-5,'Baseline matches green BFL');
+ assert(green-O.rear(s)>5&&red-O.rear(s)<250,'Screen covers doublet focus');
+ for(const y of [0,6,12])for(let i=0;i<2;i++)assert(O.surfaceX(surfaces[i+1].z,surfaces[i+1].R,y)>O.surfaceX(surfaces[i].z,surfaces[i].R,y),'Doublet elements have positive thickness throughout clear aperture');
+ for(const w of O.waves){assert(Math.abs(O.focus(w.nm,s)-8-O.paraxialBFL(surfaces,w.nm))<1e-5,'Doublet exact trace agrees with independent paraxial transfer');
+ for(const h of [.001,5.5,11]){
+  const ray=O.trace(h,w.nm,s),mirror=O.trace(-h,w.nm,s);assert(ray&&!ray.tir&&ray.interfaces.length===3);
+  assert(Math.abs(ray.d[1]+mirror.d[1])<1e-9);
+  for(const q of ray.interfaces){const cross=(a,b)=>Math.abs(a[0]*b[1]-a[1]*b[0]);assert(Math.abs(q.n1*cross(q.incoming,q.normal)-q.n2*cross(q.outgoing,q.normal))<1e-10,'Snell invariant at each of three interfaces');assert(Math.abs(Math.hypot(q.point[0]-q.surface.z-q.surface.R,q.point[1])-Math.abs(q.surface.R))<1e-7,'Point lies on assigned spherical surface');}doubletCases++;
+ }}
+}
 console.log(`PASS: ${cases} ray cases (${tir} TIR); surface intersections, Snell invariants, symmetry, thick-lens BFL, reference indices, dispersion, focal order, and screen coverage.`);
+console.log(`PASS: ${doubletCases} doublet ray cases across all 66 radius settings; three-surface refraction, positive thickness, F/C achromatization, residual secondary spectrum, matched baseline, and screen coverage.`);
 console.log('Default BFL (mm):',O.waves.map(w=>({nm:w.nm,bfl:O.focus(w.nm,{glass:'N-BK7',R:50,t:6})-6})));

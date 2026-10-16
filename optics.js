@@ -30,10 +30,23 @@ function dispersion(glass){const nd=index(glass,587.5618),dn=index(glass,486.132
 function unit(v){const l=Math.hypot(...v);return v.map(x=>x/l);}
 function refract(d,N,n1,n2){let c=-(d[0]*N[0]+d[1]*N[1]);if(c<0){N=N.map(x=>-x);c=-c;}const eta=n1/n2,k=1-eta*eta*(1-c*c);return k<0?null:unit(d.map((x,i)=>eta*x+(eta*c-Math.sqrt(k))*N[i]));}
 function hit(p,d,c,R,branch){const ox=p[0]-c,b=ox*d[0]+p[1]*d[1],q=ox*ox+p[1]*p[1]-R*R,disc=b*b-q;if(disc<0)return null;for(const t of [-b-Math.sqrt(disc),-b+Math.sqrt(disc)]){if(t<1e-7)continue;const h=[p[0]+t*d[0],p[1]+t*d[1]];if(branch*(h[0]-c)>0)return h;}return null;}
-function trace(h,nm,s){const {R,t,glass}=s,n=index(glass,nm),p=[-35,h],d=[1,0],a=hit(p,d,R,R,-1);if(!a)return null;const inside=refract(d,unit([a[0]-R,a[1]]),1,n),b=inside&&hit(a,inside,t-R,R,1);if(!b)return null;const out=refract(inside,unit([b[0]-(t-R),b[1]]),n,1);return {p,a,b,d:out,n,tir:!out};}
+function surfaceX(z,R,y){return Number.isFinite(R)?z+R-Math.sign(R)*Math.sqrt(R*R-y*y):z;}
+function surfaceHit(p,d,z,R){if(!Number.isFinite(R)){const distance=(z-p[0])/d[0];return distance>1e-7?[z,p[1]+distance*d[1]]:null;}return hit(p,d,z+R,Math.abs(R),-Math.sign(R));}
+function paraxialBFL(surfaces,nm){let y=1,u=0,n1=1;for(let i=0;i<surfaces.length;i++){const q=surfaces[i],n2=q.after==='air'?1:index(q.after,nm);u-=(n2-n1)/q.R*y;if(i<surfaces.length-1)y+=(surfaces[i+1].z-q.z)*u/n2;n1=n2;}return -y/u;}
+const doublets=new Map();
+function doublet(R){if(doublets.has(R))return doublets.get(R);const make=k=>[{z:0,R,after:'N-BK7'},{z:5,R:-R,after:'N-F2'},{z:8,R:Math.abs(k)<1e-14?Infinity:1/k,after:'air'}];
+ const error=k=>paraxialBFL(make(k),656.3)-paraxialBFL(make(k),486.1);
+ // Solve the rear curvature for coincident paraxial F/C back focal planes.
+ let k=-.05/R;for(let j=0;j<20;j++){const e=error(k),step=1e-6/R,slope=(error(k+step)-error(k-step))/(2*step);if(Math.abs(e)<1e-10)break;k-=e/slope;}
+ const result=make(k);if(!Number.isFinite(error(k))||Math.abs(error(k))>1e-7)throw new Error('Doublet design failed');doublets.set(R,result);return result;
+}
+function prescription(s){return s.mode==='doublet'?doublet(s.R):[{z:0,R:s.R,after:s.glass},{z:s.t,R:-s.R,after:'air'}];}
+function rear(s){return prescription(s).at(-1).z;}
+function trace(h,nm,s){const surfaces=prescription(s),p=[-35,h],points=[p],interfaces=[];let origin=p,d=[1,0],n1=1;for(const q of surfaces){const point=surfaceHit(origin,d,q.z,q.R);if(!point)return null;const n2=q.after==='air'?1:index(q.after,nm),N=Number.isFinite(q.R)?unit([point[0]-(q.z+q.R),point[1]]):[-1,0],out=refract(d,N,n1,n2);points.push(point);interfaces.push({point,normal:N,incoming:d,outgoing:out,n1,n2,surface:q});if(!out)return {p,a:points[1],b:point,d:null,n:index(s.glass,nm),tir:true,points,interfaces};origin=point;d=out;n1=n2;}return {p,a:points[1],b:origin,d,n:index(s.glass,nm),tir:false,points,interfaces};}
 function axis(ray){return ray.b[0]-ray.b[1]*ray.d[0]/ray.d[1];}
 function at(ray,x){return ray.b[1]+(x-ray.b[0])*ray.d[1]/ray.d[0];}
 function focus(nm,s){return axis(trace(.001,nm,s));}
 function pupil(nm,s,count=700){const rays=[];for(let i=0;i<count;i++){const r=s.ap/2*Math.sqrt((i+.5)/count);const ray=trace(r,nm,s);if(ray&&!ray.tir)rays.push({ray,phi:i*2.399963229728653});}return rays;}
-const api={glasses,materialInfo,waves,index,dispersion,refract,trace,axis,at,focus,pupil};root.Optics=api;if(typeof module!=='undefined')module.exports=api;
+function matchedSinglet(s){const target=focus(546.1,s)-rear(s);let lo=10,hi=500;for(let i=0;i<60;i++){const R=(lo+hi)/2,bfl=paraxialBFL([{z:0,R,after:'N-BK7'},{z:6,R:-R,after:'air'}],546.1);if(bfl<target)lo=R;else hi=R;}return {mode:'singlet',glass:'N-BK7',R:(lo+hi)/2,t:6,ap:s.ap};}
+const api={glasses,materialInfo,waves,index,dispersion,refract,trace,axis,at,focus,pupil,surfaceX,prescription,rear,paraxialBFL,matchedSinglet};root.Optics=api;if(typeof module!=='undefined')module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
