@@ -11,6 +11,7 @@ function render(){
  const info=O.materialInfo[s.glass],disp=O.dispersion(s.glass);
  $('materialNote').innerHTML=`${info.note} <a href="${info.source}" target="_blank" rel="noopener">Data ↗</a>`;
  $('dispersionStats').textContent=`Vd = ${disp.Vd.toFixed(2)} · nF − nC = ${disp.dn.toFixed(5)}`;
+ drawDispersion(s.glass);
  for(const id of ['R','ap','screen'])$(id+'v').textContent=(+$ (id).value).toFixed(id==='screen'?2:0)+' mm';
  ['blue','green','red'].forEach((id,i)=>$(id).textContent=(focuses[i]-6).toFixed(2)+' mm');
  $('spread').textContent=(focuses[2]-focuses[0]).toFixed(3)+' mm';
@@ -30,6 +31,20 @@ function render(){
  $('detail').innerHTML=inset;$('explain').textContent=$('dispersion').checked?'Blue bends more strongly and focuses closer to the lens. The screen cannot bring all three colors to a point at once.':'With dispersion disabled, all three colors follow the same paths. Residual spot blur is spherical aberration.';
  const c=$('spot').getContext('2d');c.fillStyle='#0c1525';c.fillRect(0,0,360,360);c.strokeStyle='#293649';c.lineWidth=1;c.beginPath();c.moveTo(180,0);c.lineTo(180,360);c.moveTo(0,180);c.lineTo(360,180);c.stroke();let rows='',clip=0,total=0;
  O.waves.forEach(w=>{const rays=O.pupil(actual(w.nm),s);let r2=0;c.fillStyle=w.color;c.globalCompositeOperation='screen';c.globalAlpha=.5;for(const {ray,phi} of rays){const r=O.at(ray,z),x=r*Math.cos(phi),y=r*Math.sin(phi);r2+=r*r;total++;if(Math.abs(x)>1||Math.abs(y)>1)clip++;c.beginPath();c.arc(180+x*180,180-y*180,1.5,0,Math.PI*2);c.fill();}rows+=`<tr><td style="color:${w.color}">${w.nm}</td><td>${O.index(s.glass,actual(w.nm)).toFixed(5)}</td><td>${(1000*Math.sqrt(r2/rays.length)).toFixed(1)} µm</td></tr>`;});c.globalAlpha=1;c.globalCompositeOperation='source-over';c.fillStyle='#aab8cd';c.font='20px system-ui';c.fillText('1 mm',285,345);$('metrics').innerHTML=rows;$('clipped').textContent=(clip?`${(100*clip/total).toFixed(1)}% of transmitted rays outside view.`:'All transmitted rays are within view.')+(total<2100?` ${((2100-total)/21).toFixed(1)}% of pupil samples undergo TIR; first-pass spot excludes them.`:'');
+}
+function drawDispersion(material){
+ const blue=O.index(material,450),red=O.index(material,700),pad=(blue-red)*.12,lo=red-pad,hi=blue+pad;
+ const X=nm=>76+(nm-450)/250*865,Y=n=>139-(n-lo)/(hi-lo)*113;
+ let plot='';
+ for(let j=0;j<=4;j++){const n=lo+(hi-lo)*j/4,y=Y(n);plot+=line(76,y,941,y,'#e6edf5')+`<text x="66" y="${y+4}" text-anchor="end">${n.toFixed(4)}</text>`;}
+ for(let nm=450;nm<=700;nm+=50){const x=X(nm);plot+=line(x,26,x,139,'#e6edf5')+`<text x="${x}" y="157" text-anchor="middle">${nm}</text>`;}
+ let points=[];for(let nm=450;nm<=700;nm+=2)points.push(`${X(nm)},${Y(O.index(material,nm))}`);
+ plot+=`<polyline points="${points.join(' ')}" fill="none" stroke="#2465dc" stroke-width="2.5"/>`;
+ O.waves.forEach(w=>{const n=O.index(material,w.nm),x=X(w.nm),y=Y(n);plot+=line(x,y,x,139,w.color,1,'stroke-dasharray="3 3"')+`<circle cx="${x}" cy="${y}" r="4" fill="${w.color}"/><text x="${x+8}" y="${y-9}" style="fill:${w.color}">${w.nm} nm · ${n.toFixed(5)}</text>`;});
+ if(!$('dispersion').checked)plot+=line(76,Y(O.index(material,546.1)),941,Y(O.index(material,546.1)),'#253044',1.5,'stroke-dasharray="6 4"');
+ plot+='<text x="17" y="16">n(λ)</text><text x="941" y="177" text-anchor="end">Wavelength λ (nm)</text>';
+ $('dispersionPlot').innerHTML=plot;$('curveLabel').textContent=O.materialInfo[material].label;
+ $('curveCaption').textContent=`n(450 nm) = ${blue.toFixed(5)} → n(700 nm) = ${red.toFixed(5)}. Vertical scale adjusts to the material; compare Vd and Δn for dispersion strength.`+(!$('dispersion').checked?' Dashed line: constant n(546.1 nm) currently used for ray tracing.':'');
 }
 for(const id of ['R','ap','screen','dispersion'])$(id).addEventListener('input',render);
 $('glass').addEventListener('input',()=>{const s={R:+$('R').value,t:6,ap:+$('ap').value,glass:$('glass').value};$('screen').value=O.focus(546.1,s)-6;render();});

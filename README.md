@@ -4,6 +4,8 @@
 
 A dependency-free teaching page in English. Choose from nine materials: N-BK7, N-F2, N-SF66, fused silica, fluorite, diamond, distilled water, sphalerite (cubic ZnS), and cubic zirconia (yttria-stabilized ZrO₂). Change surface radius, illuminated aperture, and screen distance; inspect wavelength-specific back focal distances, exact meridional ray paths, a focus inset, and a geometric screen spot diagram. Turn dispersion off to isolate spherical aberration.
 
+A visible n(λ) curve spans 450–700 nm, with the three ray wavelengths marked. Its vertical axis adjusts to each material. When dispersion is disabled, the material curve remains and a dashed line identifies the constant tracing index n(546.1 nm).
+
 ## Physics
 
 Analytic ray–sphere intersections and vector Snell refraction at **both** spherical surfaces; no thin-lens approximation in the traced rays. Symmetric biconvex singlet, R1 = +R, R2 = −R, center thickness 6 mm, physical clear diameter 24 mm. Input light is collimated and on axis. Air index is 1. Lens aperture control specifies illuminated pupil diameter (2–22 mm).

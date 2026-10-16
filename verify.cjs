@@ -31,6 +31,7 @@ assert(Math.abs(O.index('ZnS',632.8)-2.35)<.002);
 assert(Math.abs(O.index('Zirconia',589.3)-2.15847)<.00005);
 assert(Math.abs(O.dispersion('Zirconia').dn-.03455)<.00005);
 assert(O.dispersion('ZnS').Vd<O.dispersion('N-SF66').Vd);
+for(const glass of Object.keys(O.glasses)){let last=Infinity;for(let nm=450;nm<=700;nm+=2){const n=O.index(glass,nm);assert(Number.isFinite(n)&&n>1&&n<last,'Visible dispersion curve is finite and decreases');last=n;}}
 for(const glass of Object.keys(O.glasses))for(const R of [35,100])for(const w of O.waves){const b=O.focus(w.nm,{glass,R,t:6})-6;assert(b>5&&b<180,'Screen range covers every paraxial focus');}
 console.log(`PASS: ${cases} ray cases (${tir} TIR); surface intersections, Snell invariants, symmetry, thick-lens BFL, reference indices, dispersion, focal order, and screen coverage.`);
 console.log('Default BFL (mm):',O.waves.map(w=>({nm:w.nm,bfl:O.focus(w.nm,{glass:'N-BK7',R:50,t:6})-6})));
